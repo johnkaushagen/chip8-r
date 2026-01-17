@@ -29,6 +29,11 @@ impl Emu {
             *pixel = false;
         }
     }
+
+    fn op_1nnn_jump(&mut self, address: u16) {
+        self.pc = address;
+    }
+
 }
 
 fn main() {
@@ -74,5 +79,15 @@ mod tests {
         for &pixel in chip8.screen.iter() {
             assert_eq!(pixel, false);
         }
+    }
+
+    #[test]
+    fn test_op_1nnn_jump() {
+        let chip8 = &mut Emu::new();
+        chip8.memory[0] = 0x12;
+        chip8.memory[1] = 0x34;
+        let address: u16 = 0x234;
+        chip8.op_1nnn_jump(address);
+        assert_eq!(chip8.pc, address);
     }
 }
