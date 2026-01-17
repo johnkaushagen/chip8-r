@@ -1,11 +1,13 @@
 const RAM_SIZE: usize = 4096;
 const SCREEN_WIDTH: usize = 64;
 const SCREEN_HEIGHT: usize = 32;
+const VREG_SIZE: usize = 16;
 
 struct Emu {
     pc: u16,
     memory: [u8; RAM_SIZE],
     screen: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
+    v_reg: [u8; VREG_SIZE],
 }
 
 impl Emu {
@@ -14,6 +16,7 @@ impl Emu {
             pc: 0,
             memory: [0; RAM_SIZE],
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
+            v_reg: [0; VREG_SIZE],
         }
     }
 
@@ -32,6 +35,10 @@ impl Emu {
 
     fn op_1nnn_jump(&mut self, address: u16) {
         self.pc = address;
+    }
+
+    fn op_6xnn_set_vx(&mut self, x: usize, nn: u8) {
+        self.v_reg[x] = nn;
     }
 
 }
@@ -55,6 +62,13 @@ fn main() {
                 let address = opcode & 0x0FFF;
                 chip8.op_1nnn_jump(address);
             }
+
+            0x6000 => {
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let nn = (opcode & 0x00FF) as u8;
+                chip8.op_6xnn_set_vx(x, nn);
+            }
+
             _ =>{
                 println!("Unknown opcode: {:04X}", opcode);
                 break 'main;
@@ -111,5 +125,17 @@ mod tests {
         let address: u16 = 0x234;
         chip8.op_1nnn_jump(address);
         assert_eq!(chip8.pc, address);
+    }
+
+    #[test]
+    fn test_op_6xnn_set_vx() {
+        let chip8 = &mut Emu::new();
+        chip8.memory[0] = 0x60;
+        chip8.memory[1] = 0xFF;
+        let opcode = chip8.fetch();
+        let x = ((opcode & 0x0F00) >> 8) as usize;
+        let nn = (opcode & 0x00FF) as u8;
+        chip8.v_reg[x] = nn;
+        assert_eq!(chip8.v_reg[x], 0xFF);
     }
 }
