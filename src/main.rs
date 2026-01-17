@@ -8,6 +8,13 @@ struct Emu {
 }
 
 impl Emu {
+    fn new() -> Self {
+        Emu {
+            memory: [0; RAM_SIZE],
+            screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
+        }
+    }
+
     fn op_00e0_clear_screen(&mut self) {
         for pixel in self.screen.iter_mut() {
             *pixel = false;
@@ -16,10 +23,7 @@ impl Emu {
 }
 
 fn main() {
-    let chip8: Emu = Emu {
-        memory: [0; RAM_SIZE],
-        screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
-    };
+    let chip8 = &mut Emu::new();
     println!("Initialized emulator with {} bytes of RAM.", chip8.memory.len());
 }
 
@@ -29,10 +33,7 @@ mod tests {
 
     #[test]
     fn test_memory_initialization() {
-        let chip8 = Emu {
-            memory: [0; RAM_SIZE],
-            screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
-        };
+        let chip8 = Emu::new();
         for &byte in chip8.memory.iter() {
             assert_eq!(byte, 0);
         }
@@ -40,10 +41,7 @@ mod tests {
 
     #[test]
     fn test_op_00e0_clear_screen() {
-        let mut chip8 = Emu {
-            memory: [0; RAM_SIZE],
-            screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
-        };
+        let chip8 = &mut Emu::new();
         chip8.screen[0] = true;
         chip8.op_00e0_clear_screen();
         for &pixel in chip8.screen.iter() {
