@@ -39,6 +39,28 @@ impl Emu {
 fn main() {
     let chip8 = &mut Emu::new();
     println!("Initialized emulator with {} bytes of RAM.", chip8.memory.len());
+    let id_mask: u16 = 0xF000;
+
+    'main: loop {
+        let opcode = chip8.fetch();
+        match opcode & id_mask {
+            0x0000 => match opcode {
+                0x00E0 => chip8.op_00e0_clear_screen(),
+                _ => {
+                    println!("Unknown opcode: {:04X}", opcode);
+                    break 'main;
+                }
+            },
+            0x1000 => {
+                let address = opcode & 0x0FFF;
+                chip8.op_1nnn_jump(address);
+            }
+            _ =>{
+                println!("Unknown opcode: {:04X}", opcode);
+                break 'main;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
