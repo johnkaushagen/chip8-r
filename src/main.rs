@@ -53,6 +53,36 @@ impl Emu {
         self.i_reg = address;
     }
 
+    fn op_dxyn_draw(&mut self, x: usize, y: usize, n: u8) {
+        self.v_reg[0xF] = 0;
+        let xcoord = self.v_reg[x] as usize % SCREEN_WIDTH;
+        let ycoord = self.v_reg[y] as usize % SCREEN_HEIGHT;
+        let mut flipped = false;
+        for row in 0..n as usize {
+            for col in 0..8 as usize {
+                let sprite_data = self.memory[(self.i_reg + row as u16) as usize];
+                let pixel = ((sprite_data >> (7 - col)) & 0x1) == 1;
+                let screen_x = (xcoord + col); // Don't wrap
+                let screen_y = (ycoord + row);
+                if screen_x >= SCREEN_WIDTH || screen_y >= SCREEN_HEIGHT {
+                    continue;
+                }
+                let index = screen_y * SCREEN_WIDTH + screen_x;
+                if pixel {
+                    if self.screen[index] {
+                        flipped = true;
+                    }
+                    self.screen[index] = false;
+                } else {
+                    self.screen[index] = pixel;
+                }
+                if flipped { self.v_reg[0xF] = 1; }
+            }
+        }
+
+
+    }
+
 }
 
 fn main() {
@@ -85,6 +115,11 @@ fn main() {
                 let x = ((opcode & 0x0F00) >> 8) as usize;
                 let nn = (opcode & 0x00FF) as u8;
                 chip8.op_7xnn_add_vx(x, nn);
+            }
+
+            0xA000 => {
+                let address = opcode & 0x0FFF;
+                chip8.op_annn_set_i_reg(address);
             }
 
             _ =>{
@@ -178,5 +213,10 @@ mod tests {
         let address: u16 = 0x300;
         chip8.op_annn_set_i_reg(address);
         assert_eq!(chip8.i_reg, address);
+    }
+
+    #[test]
+    fn test_dxyn_draw() {
+        assert_eq!(1, 0); // Fail test placeholder
     }
 }
