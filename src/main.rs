@@ -41,6 +41,12 @@ impl Emu {
         self.v_reg[x] = nn;
     }
 
+    fn op_7xnn_add_vx(&mut self, x: usize, nn: u8) {
+        // This operation does not set the carry flag
+        let (result, _) = self.v_reg[x].overflowing_add(nn);
+        self.v_reg[x] = result;
+    }
+
 }
 
 fn main() {
@@ -67,6 +73,12 @@ fn main() {
                 let x = ((opcode & 0x0F00) >> 8) as usize;
                 let nn = (opcode & 0x00FF) as u8;
                 chip8.op_6xnn_set_vx(x, nn);
+            }
+
+            0x7000 => {
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let nn = (opcode & 0x00FF) as u8;
+                chip8.op_7xnn_add_vx(x, nn);
             }
 
             _ =>{
@@ -137,5 +149,20 @@ mod tests {
         let nn = (opcode & 0x00FF) as u8;
         chip8.v_reg[x] = nn;
         assert_eq!(chip8.v_reg[x], 0xFF);
+    }
+
+    #[test]
+    fn test_op_7xnn_add_vx() {
+        let chip8 = &mut Emu::new();
+        let old_carry = chip8.v_reg[0xF];
+        chip8.v_reg[0] = 0x10;
+        chip8.op_7xnn_add_vx(0, 0x20);
+        assert_eq!(chip8.v_reg[0], 0x30);
+
+        chip8.v_reg[1] = 0xFF;
+        chip8.op_7xnn_add_vx(1, 0x02);
+        assert_eq!(chip8.v_reg[1], 0x01); // Overflow wraps around
+
+        assert_eq!(chip8.v_reg[0xF], old_carry); // Carry flag unchanged
     }
 }
