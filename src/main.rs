@@ -7,6 +7,7 @@ struct Emu {
     pc: u16,
     memory: [u8; RAM_SIZE],
     screen: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
+    i_reg: u16,
     v_reg: [u8; VREG_SIZE],
 }
 
@@ -16,6 +17,7 @@ impl Emu {
             pc: 0,
             memory: [0; RAM_SIZE],
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
+            i_reg: 0,
             v_reg: [0; VREG_SIZE],
         }
     }
@@ -45,6 +47,10 @@ impl Emu {
         // This operation does not set the carry flag
         let (result, _) = self.v_reg[x].overflowing_add(nn);
         self.v_reg[x] = result;
+    }
+
+    fn op_annn_set_i_reg(&mut self, address: u16) {
+        self.i_reg = address;
     }
 
 }
@@ -164,5 +170,13 @@ mod tests {
         assert_eq!(chip8.v_reg[1], 0x01); // Overflow wraps around
 
         assert_eq!(chip8.v_reg[0xF], old_carry); // Carry flag unchanged
+    }
+
+    #[test]
+    fn test_op_annn_set_i_reg() {
+        let chip8 = &mut Emu::new();
+        let address: u16 = 0x300;
+        chip8.op_annn_set_i_reg(address);
+        assert_eq!(chip8.i_reg, address);
     }
 }
