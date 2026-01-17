@@ -3,6 +3,7 @@ const SCREEN_WIDTH: usize = 64;
 const SCREEN_HEIGHT: usize = 32;
 
 struct Emu {
+    pc: u16,
     memory: [u8; RAM_SIZE],
     screen: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
 }
@@ -10,9 +11,17 @@ struct Emu {
 impl Emu {
     fn new() -> Self {
         Emu {
+            pc: 0,
             memory: [0; RAM_SIZE],
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
+    }
+
+    fn fetch(&mut self) -> u16 {
+        let hi = self.memory[self.pc as usize] as u16;
+        let lo = self.memory[(self.pc + 1) as usize] as u16;
+        self.pc += 2;
+        (hi << 8) | lo
     }
 
     fn op_00e0_clear_screen(&mut self) {
@@ -37,6 +46,24 @@ mod tests {
         for &byte in chip8.memory.iter() {
             assert_eq!(byte, 0);
         }
+    }
+
+    #[test]
+    fn test_fetch_instruction() {
+        let chip8 = &mut Emu::new();
+        chip8.memory[0] = 0xAB;
+        chip8.memory[1] = 0xCD;
+        let actual = chip8.fetch();
+        let expected = 0xABCD;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_fetch_instruction_increments_pc() {
+        let chip8 = &mut Emu::new();
+        let expected = chip8.pc + 2;
+        let _ = chip8.fetch();
+        assert_eq!(chip8.pc, expected);
     }
 
     #[test]
