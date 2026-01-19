@@ -55,32 +55,26 @@ impl Emu {
 
     fn op_dxyn_draw(&mut self, x: usize, y: usize, n: u8) {
         self.v_reg[0xF] = 0;
-        let xcoord = self.v_reg[x] as usize % SCREEN_WIDTH;
-        let ycoord = self.v_reg[y] as usize % SCREEN_HEIGHT;
+        let left = self.v_reg[x] as usize % SCREEN_WIDTH;
+        let top = self.v_reg[y] as usize % SCREEN_HEIGHT;
         let mut flipped = false;
         for row in 0..n as usize {
             for col in 0..8 as usize {
                 let sprite_data = self.memory[(self.i_reg + row as u16) as usize];
                 let pixel = ((sprite_data >> (7 - col)) & 0x1) == 1;
-                let screen_x = (xcoord + col); // Don't wrap
-                let screen_y = (ycoord + row);
-                if screen_x >= SCREEN_WIDTH || screen_y >= SCREEN_HEIGHT {
+                let screen_x = left + col; // Don't wrap
+                let screen_y = top + row;
+                if screen_x > SCREEN_WIDTH || screen_y > SCREEN_HEIGHT {
                     continue;
                 }
                 let index = screen_y * SCREEN_WIDTH + screen_x;
-                if pixel {
-                    if self.screen[index] {
-                        flipped = true;
-                    }
-                    self.screen[index] = false;
-                } else {
-                    self.screen[index] = pixel;
+                if pixel && self.screen[index] {
+                    flipped = true;
                 }
+                self.screen[index] ^= pixel;
                 if flipped { self.v_reg[0xF] = 1; }
             }
         }
-
-
     }
 
 }
@@ -103,25 +97,27 @@ fn main() {
             0x1000 => {
                 let address = opcode & 0x0FFF;
                 chip8.op_1nnn_jump(address);
-            }
-
+            },
             0x6000 => {
                 let x = ((opcode & 0x0F00) >> 8) as usize;
                 let nn = (opcode & 0x00FF) as u8;
                 chip8.op_6xnn_set_vx(x, nn);
-            }
-
+            },
             0x7000 => {
                 let x = ((opcode & 0x0F00) >> 8) as usize;
                 let nn = (opcode & 0x00FF) as u8;
                 chip8.op_7xnn_add_vx(x, nn);
-            }
-
+            },
             0xA000 => {
                 let address = opcode & 0x0FFF;
                 chip8.op_annn_set_i_reg(address);
-            }
-
+            },
+            0xD000 => {
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let y = ((opcode & 0x00F0) >> 4) as usize;
+                let n = (opcode & 0x000F) as u8;
+                chip8.op_dxyn_draw(x, y, n);
+            },
             _ =>{
                 println!("Unknown opcode: {:04X}", opcode);
                 break 'main;
@@ -217,6 +213,36 @@ mod tests {
 
     #[test]
     fn test_dxyn_draw() {
-        assert_eq!(1, 0); // Fail test placeholder
+        let chip8 = &mut Emu::new();
+        chip8.i_reg = 0x200;
+        chip8.memory[0x200] = 0b11110000;
+        chip8.v_reg[0] = 0; // x coordinate
+        chip8.v_reg[1] = 0; // y coordinate
+        chip8.op_dxyn_draw(0, 1, 1);
+        assert_eq!(chip8.screen[0], true);
+        assert_eq!(chip8.screen[1], true);
+        assert_eq!(chip8.screen[2], true);
+        assert_eq!(chip8.screen[3], true);
+        assert_eq!(chip8.screen[4], false);
+        assert_eq!(chip8.v_reg[0xF], 0); // No pixels flipped
+
+        // Draw the same sprite again to test pixel flipping
+        chip8.op_dxyn_draw(0, 1, 1);
+        assert_eq!(chip8.screen[0], false);
+        assert_eq!(chip8.screen[1], false);
+        assert_eq!(chip8.screen[2], false);
+        assert_eq!(chip8.screen[3], false);
+        assert_eq!(chip8.v_reg[0xF], 1); // Pixels flipped
+
+        chip8.memory[0x201] = 0b11111111;
+        chip8.v_reg[0] = 60; // x coordinate near edge
+        chip8.v_reg[1] = 30; // y coordinate near edge
+        chip8.op_dxyn_draw(0, 1, 1);
+        // Only the first 4 pixels should be drawn
+        assert_eq!(chip8.screen[30 * SCREEN_WIDTH + 60], true);
+        assert_eq!(chip8.screen[30 * SCREEN_WIDTH + 61], true);
+        assert_eq!(chip8.screen[30 * SCREEN_WIDTH + 62], true);
+        assert_eq!(chip8.screen[30 * SCREEN_WIDTH + 63], true);
+        assert_eq!(chip8.v_reg[0xF], 0); // No pixels flipped
     }
 }
