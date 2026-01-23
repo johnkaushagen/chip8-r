@@ -9,6 +9,13 @@ pub struct Emu {
     screen: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
     i_reg: u16,
     v_reg: [u8; VREG_SIZE],
+
+    id_mask: u16,
+    x_mask: u16,
+    y_mask: u16,
+    n_mask: u16,
+    nn_mask: u16,
+    nnn_mask: u16,
 }
 
 impl Emu {
@@ -19,6 +26,12 @@ impl Emu {
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
             i_reg: 0,
             v_reg: [0; VREG_SIZE],
+            id_mask: 0xF000,
+            x_mask: 0x0F00,
+            y_mask: 0x00F0,
+            n_mask: 0x000F,
+            nn_mask: 0x00FF,
+            nnn_mask: 0x0FFF,
         }
     }
 
@@ -27,6 +40,45 @@ impl Emu {
         let lo = self.memory[(self.pc + 1) as usize] as u16;
         self.pc += 2;
         (hi << 8) | lo
+    }
+
+    pub fn cycle(&mut self) {
+        let opcode = self.fetch();
+        match opcode & self.id_mask {
+            0x0000 => match opcode {
+                0x00E0 => self.op_00e0_clear_screen(),
+                _ => {
+                    println!("Unknown opcode: {:04X}", opcode);
+                }
+            },
+            0x1000 => {
+                let nnn = opcode & self.nnn_mask;
+                self.op_1nnn_jump(nnn);
+            },
+            0x6000 => {
+                let x = ((opcode & self.x_mask) >> 8) as usize;
+                let nn = (opcode & self.nn_mask) as u8;
+                self.op_6xnn_set_vx(x, nn);
+            },
+            0x7000 => {
+                let x = ((opcode & self.x_mask) >> 8) as usize;
+                let nn = (opcode & self.nn_mask) as u8;
+                self.op_7xnn_add_vx(x, nn);
+            },
+            0xA000 => {
+                let nnn = opcode & self.nnn_mask;
+                self.op_annn_set_i_reg(nnn);
+            },
+            0xD000 => {
+                let x = ((opcode & self.x_mask) >> 8) as usize;
+                let y = ((opcode & self.y_mask) >> 4) as usize;
+                let n = (opcode & self.n_mask) as u8;
+                self.op_dxyn_draw(x, y, n);
+            },
+            _ =>{
+                println!("Unknown opcode: {:04X}", opcode);
+            }
+        }
     }
 
     pub fn op_00e0_clear_screen(&mut self) {
